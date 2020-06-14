@@ -67,12 +67,10 @@ endfunction
 "   * CMAKE_C_COMPILER
 "   * The generator (-G)
 function! s:cmake_configure()
-  exec 'cd' s:fnameescape(b:build_dir)
-
   let l:argument = []
   " Only change values of variables, if project is not configured
   " already, otherwise we overwrite existing configuration.
-  let l:configured = filereadable("CMakeCache.txt")
+  let l:configured = filereadable(s:fnameescape(b:build_dir . "CMakeCache.txt"))
 
   if !l:configured
     if exists("g:cmake_project_generator")
@@ -104,10 +102,9 @@ function! s:cmake_configure()
   endif
 
   let l:argumentstr = join(l:argument, " ")
-  let l:escaped_build_dir=s:fnameescape(b:build_dir)
-  let l:home_dir = "-H".l:escaped_build_dir."/.."
-  let l:build_dir_path = "-B".l:escaped_build_dir
-  let s:cmd = 'cmake '.l:home_dir.' '.l:build_dir_path.' '.l:argumentstr . " " . join(a:000)
+  let l:build_dir_path = s:fnameescape(b:build_dir)
+  let l:source_dir_path = s:fnameescape(substitute(b:build_dir, g:cmake_build_dir . "/", "", ""))
+  let s:cmd = 'cmake -S ' . l:source_dir_path . ' -B ' .  l:build_dir_path . ' ' . l:argumentstr . " " . join(a:000)
 
   echo s:cmd
   if exists(":AsyncRun")
@@ -120,16 +117,14 @@ function! s:cmake_configure()
   endif
 
   " Create symbolic link to compilation database for use with YouCompleteMe
-  if g:cmake_ycm_symlinks && filereadable("compile_commands.json")
+  if g:cmake_ycm_symlinks && filereadable(l:build_dir_path . "compile_commands.json")
     if has("win32")
-      exec "mklink" "../compile_commands.json" "compile_commands.json"
+      exec "mklink" l:source_dir_path . "/compile_commands.json" "compile_commands.json"
     else
-      silent echo system("ln -s " . s:fnameescape(b:build_dir) ."/compile_commands.json ../compile_commands.json")
+      silent echo system("ln -s " . l:build_dir_path . "/compile_commands.json " . l:source_dir_path . "/compile_commands.json")
     endif
     echom "Created symlink to compilation database"
   endif
-
-  exec 'cd -'
 endfunction
 
 " Utility function
